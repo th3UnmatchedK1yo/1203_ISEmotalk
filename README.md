@@ -1,7 +1,7 @@
 # Speech Emotion Recognition
 
 
-speech_emotion_recognition/
+1203_ISEMOTALK/
 ├── config/                     # Lưu trữ file cấu hình json
 │   ├── base_config.json        # Cấu hình chung
 │   ├── cnn_config.json         # Cấu hình cho CNN
@@ -73,3 +73,6 @@ speech_emotion_recognition/
 ├── README.md                     #  Hướng dẫn sử dụng dự án
 ├── .gitignore                    #  Bỏ qua file không cần push lên GitHub
 └── .dvc/                         #  Quản lý version dataset với DVC
+
+
+to activate: conda activate tf

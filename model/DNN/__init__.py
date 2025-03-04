@@ -1,4 +1,10 @@
 from .cnn import CNN
+from .dnn_control import DNN
+
+
+_MODELS={
+    'cnn': CNN
+}
 
 
 def make_model(config, n_feats:int):
@@ -15,7 +21,7 @@ def make_model(config, n_feats:int):
 
     if config.model == 'cnn':
         model = CNN.make(
-            inoput_shape=n_feats,
+            input_shape=n_feats,
             n_kernels=config.n_kernels,
             kernel_size = config.kernel_size,
             hidden_size=config.hidden_size,
@@ -27,9 +33,6 @@ def make_model(config, n_feats:int):
     return model
 
 
-_MODELS={
-    'cnn': CNN
-}
 
 def load(config):
     """
