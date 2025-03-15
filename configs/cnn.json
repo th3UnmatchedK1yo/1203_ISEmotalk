@@ -8,7 +8,10 @@
     },
     "features": {
         "feature_method": "librosa",
-        "feature_folder": "features/8-category/librosa_ravdess/"
+        "feature_folder": "features/8-category/librosa_ravdess/",
+        "sr":22050,
+        "duration":2.5, 
+        "offset":0.6
     },
     "training": {
         "epochs": 50,
@@ -17,7 +20,7 @@
         "test_size": 0.2,
         "random_state": 42,
         "callbacks": {
-            "checkpoint_path": "checkpoints/best_model_weights.h5",
+            "checkpoint_path": "checkpoints/best_model_weights.keras",
             "monitor": "val_accuracy",
             "early_stop_patience": 5,
             "lr_reduction_patience": 3,
@@ -26,8 +29,6 @@
         }
     },
     "model_params": {
-        "input_shape": [40, 1],
-        "num_classes": 8,
         "conv_layers": [
             {
                 "filters": 512,
@@ -37,7 +38,8 @@
                 "activation": "relu",
                 "pool_size": 5,
                 "dropout": 0,
-                "strides_2": 2
+                "strides_2": 2,
+                "batch_norm": true
             },
             {
                 "filters": 512,
@@ -47,7 +49,8 @@
                 "activation": "relu",
                 "pool_size": 5,
                 "dropout": 0.2,
-                "strides_2": 2
+                "strides_2": 2,
+                "batch_norm": true
             },
             {
                 "filters": 256,
@@ -57,7 +60,8 @@
                 "activation": "relu",
                 "pool_size": 5,
                 "dropout": 0,
-                "strides_2": 2
+                "strides_2": 2,
+                "batch_norm": true
             },
             {
                 "filters": 256,
@@ -65,9 +69,10 @@
                 "strides_1": 1,
                 "padding": "same",
                 "activation": "relu",
-                "pool_size": 5,
+                "pool_size": 3,
                 "dropout": 0.2,
-                "strides_2": 2
+                "strides_2": 2,
+                "batch_norm": true
             },
             {
                 "filters": 128,
@@ -75,9 +80,10 @@
                 "strides_1": 1,
                 "padding": "same",
                 "activation": "relu",
-                "pool_size": 5,
+                "pool_size": 3,
                 "dropout": 0.2,
-                "strides_2": 2
+                "strides_2": 2,
+                "batch_norm": true
             }
         ],
         "dense_layers": [
@@ -94,9 +100,10 @@
     },
     "callbacks": {
         "model_checkpoint": {
-            "path": "best_model_weights.h5",
+            "path": "checkpoints/best_model_weights.keras",
             "monitor": "val_accuracy",
-            "save_best_only": true
+            "save_best_only": true,
+            "save_weights_only": false 
         },
         "early_stopping": {
             "monitor": "val_accuracy",
@@ -109,5 +116,10 @@
             "factor": 0.5,
             "min_lr": 1e-05
         }
+    },
+    "checkpoint":{
+        "checkpoint_path": "checkpoints/" ,
+        "checkpoint_name": "CNN_librosa"  
     }
+    
 }

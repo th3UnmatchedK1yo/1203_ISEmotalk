@@ -3,133 +3,215 @@ import librosa
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
+import pickle
 from .extract_librosa import extract_features
 from .augmentation import noise, pitch, shift, stretch
+from typing import Union, List, Tuple
+import utils
+import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 
-FEATURE_DIR = Path("features")
-FEATURE_DIR.mkdir(parents=True, exist_ok=True)  
-
-def get_path (path: str ):
-    """Tải dữ liệu RAVDESS và tạo DataFrame.
+def get_path(path: str, train: bool = True) -> List[Tuple[str, int]]:
+    """
+    Tải dữ liệu và trả về danh sách chứa đường dẫn file và nhãn cảm xúc.
 
     Args:
-        dataset_path (str): Đường dẫn tới thư mục chứa dataset.
+        path (str): Đường dẫn tới thư mục chứa dataset.
+        train (bool): Nếu True, lấy nhãn từ tên file. Nếu False, gán nhãn là -1.
 
     Returns:
-        pd.DataFrame: DataFrame chứa đường dẫn file và nhãn cảm xúc.
+        List[Tuple[str, int]]: Danh sách chứa (đường dẫn file, nhãn cảm xúc).
     """
     dataset_path = Path(path)
 
     if not dataset_path.exists():
         raise FileNotFoundError(f"[Error] Dataset folder '{dataset_path}' không tồn tại!")
 
-    file_emotion = []
-    file_path = []
+    result_list = []  
 
-    for actor_path in dataset_path.iterdir():
-        if not actor_path.is_dir():
-            continue  
-        
-        for file in actor_path.iterdir():
-            if file.suffix != ".wav": 
-                continue
-            try:
-                part = file.stem.split("-")  
-                file_emotion.append(int(part[2]))  
-                file_path.append(str(file))
-            except (IndexError, ValueError):
-                print(f"[Warning] Không thể đọc thông tin từ file: {file}")
+   
+    for file in dataset_path.rglob("*.wav"):  
+        try:
+            if train:
+                part = file.stem.split("-")
+                emotion_label = int(part[2])-1
+            else:
+                emotion_label = -1
 
-    if not file_path:
-        raise ValueError("[Error] Không tìm thấy file âm thanh nào trong dataset!")
+            result_list.append((str(file), emotion_label))
 
+        except (IndexError, ValueError):
+            print(f"[Warning] Không thể đọc thông tin từ file: {file}")
+            continue
 
-    emotion_df = pd.DataFrame(file_emotion, columns=["Emotions"])
-    path_df = pd.DataFrame(file_path, columns=["Path"])
-    result_df = pd.concat([emotion_df, path_df], axis=1)
+    if not result_list:
+        raise ValueError("[Error] Không tìm thấy file âm thanh nào trong dataset!")    
 
- 
-    result_df.Emotions.replace({
-        1: "Neutral", 2: "Calm", 3: "Happy", 4: "Sad",
-        5: "Angry", 6: "Fear", 7: "Disgust", 8: "Surprise"
-    }, inplace=True)
-
-    return result_df
-
-def save_features(features, filename):
-    """Lưu đặc trưng vào file .npy để sử dụng lại sau này."""
-    filepath = FEATURE_DIR / f"{filename}.npy"
-    np.save(filepath, features)
-    print(f"[INFO] Đã lưu đặc trưng tại: {filepath}")
-
-def load_features(filename):
-    """Tải đặc trưng đã lưu nếu tồn tại."""
-    filepath = FEATURE_DIR / f"{filename}.npy"
-    if filepath.exists():
-        print(f"[INFO] Đang tải đặc trưng từ: {filepath}")
-        return np.load(filepath)
-    return None
-
-def get_features(path, sr=22050, duration=2.5, offset=0.6, save=True):
-    """Tải file âm thanh, trích xuất đặc trưng và lưu lại nếu cần.
-
-    Args:
-        path (str): Đường dẫn file âm thanh.
-        sr (int): Tần số lấy mẫu.
-        duration (float): Độ dài âm thanh trích xuất.
-        offset (float): Offset khi load file.
-        save (bool): Nếu True, lưu đặc trưng vào thư mục `features/`.
-
-    Returns:
-        np.ndarray: Đặc trưng âm thanh đã trích xuất.
-    """
-    filename = Path(path).stem 
+    return result_list 
 
 
-    existing_features = load_features(filename)
-    if existing_features is not None:
-        return existing_features
+#  -1:'predict',   0: 'Neutral', 1: 'Calm', 2: 'Happy', 3: 'Sad', 4: 'Angry', 5: 'Fear', 6: 'Disgust', 7: 'Surprise'
+
+
+def get_max_min(files: list) -> Tuple[float]:
+    min_, max_ = 100, 0
+
+    for file in files:
+        sound_file, samplerate = librosa.load(file, sr=None)
+        t = sound_file.shape[0] / samplerate
+        if t < min_:
+            min_ = t
+        if t > max_:
+            max_ = t
+
+    return max_, min_
+
+
+
+def prepara_data(config, train: bool) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray]:
+    feature_path = os.path.join(config.features.feature_folder, "train.p" if train else "predict.p")
+
+    
+    if not os.path.exists(feature_path):
+        raise FileNotFoundError(f"[Error] File chứa đặc trưng '{feature_path}' không tồn tại!")
 
     try:
-        if not os.path.exists(path):
-            print(f"[Warning] File không tồn tại: {path}")
-            return None
+        
+        data = joblib.load(feature_path)
+        if isinstance(data, tuple) and len(data) == 2:
+            features, labels = data
+        else:
+            raise ValueError("[Error] Dữ liệu trong feature file không đúng định dạng.")
+        
+        
+        max_len = max(f.shape[0] for f in features)  
+        features = np.array([np.pad(f, (0, max_len - f.shape[0])) if f.shape[0] < max_len else f for f in features])
 
-        data, sample_rate = librosa.load(path, sr=sr, duration=duration, offset=offset)
-        if data is None or len(data) == 0:
-            print(f"[Warning] File rỗng: {path}")
-            return None
+        
+        features = np.array(features, dtype=np.float32)
+        labels = np.array(labels, dtype=np.int64)
 
-        base_features = extract_features(data, sample_rate)
-
-      
-        noised_features = extract_features(noise(data), sample_rate)
-        stretched_features = extract_features(stretch(data), sample_rate)
-        shifted_features = extract_features(shift(data), sample_rate)
-        pitched_features = extract_features(pitch(data, sample_rate, n_steps=0.7), sample_rate)
-
-
-        pitched_noised_features = extract_features(noise(pitch(data, sample_rate, n_steps=0.7)), sample_rate)
-
-        all_features = np.vstack((
-            base_features,
-            noised_features,
-            stretched_features,
-            shifted_features,
-            pitched_features,
-            pitched_noised_features
-        ))
-
-        if save:
-            save_features(all_features, filename)
-
-        return all_features
+        
+        print("Feature shape:", features.shape)
+        print("Label shape:", labels.shape)
 
     except Exception as e:
-        print(f"[Error] Lỗi khi xử lý file {path}: {e}")
-        return None
+        raise ValueError(f"[Error] Lỗi khi tải feature file: {e}")
+
+
+    if len(features) == 0 or len(labels) == 0:
+        raise ValueError("[Error] Dữ liệu đặc trưng hoặc nhãn bị rỗng!")
+
+    if len(features) != len(labels):
+        raise ValueError("[Error] Số lượng đặc trưng và nhãn không khớp!")
+
     
+    scaler_path = os.path.join(config.checkpoint.checkpoint_path, 'SCALER_LIBROSA.m')
+
+    if train:
+        
+        scaler = StandardScaler().fit(features)
+        os.makedirs(config.checkpoint.checkpoint_path, exist_ok=True)  
+        joblib.dump(scaler, scaler_path)
+        features = scaler.transform(features)
+
+        
+        x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42, shuffle=True)
 
 
+        return x_train, x_test, y_train, y_test
+    else:
+        
+        scaler = joblib.load(scaler_path)
+        features = scaler.transform(features)
+
+        return features
+
+
+def get_features(paths_list: List[Tuple[str, int]], config=None, train: bool = True) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+    """
+    Tải file âm thanh từ danh sách đường dẫn và nhãn cảm xúc, trích xuất đặc trưng và lưu lại.
+
+    Args:
+        paths_list (List[Tuple[str, int]]): Danh sách chứa (đường dẫn file, nhãn cảm xúc).
+        config (dict, optional): Cấu hình thông số âm thanh.
+        train (bool): Nếu True, thực hiện augmentation và lưu đặc trưng.
+
+    Returns:
+        Union[Tuple[np.ndarray], np.ndarray]: Trả về đặc trưng đã được lưu hoặc gọi `prepara_data()`
+    """
+
+    max_duration, _ = get_max_min([path for path, _ in paths_list])
+
+    all_features = []  
+    all_labels = []    
+
+    for path, label in paths_list:
+        sr = config.features.sr if config else 22050
+        duration = max_duration 
+        offset = config.features.offset if config else 0.6
+
+        try:
+            if not os.path.exists(path):
+                print(f"[Warning] File không tồn tại: {path}")
+                continue
+
+            data, sample_rate = librosa.load(path, sr=sr, duration=duration, offset=offset)
+            if data is None or len(data) == 0:
+                print(f"[Warning] File rỗng: {path}")
+                continue
+
+            if train:
+                augmented_features = []
+                augmented_data = [
+                    data,  
+                    noise(data), 
+                    stretch(data), 
+                    shift(data), 
+                    pitch(data, sample_rate), 
+                    noise(pitch(data, sample_rate))  
+                ]
+
+                for aug_data in augmented_data:
+                    extracted_feature = extract_features(aug_data, sample_rate)
+                    if extracted_feature is not None and extracted_feature.shape[0] > 0:
+                        augmented_features.append(extracted_feature)
+
+                if len(augmented_features) > 0:
+                    features = np.vstack(augmented_features)
+                    all_labels.extend([label] * features.shape[0])  
+                    all_features.append(features)
+
+            else: 
+                features = extract_features(data, sample_rate)
+                if features is not None and features.shape[0] > 0:
+                    all_labels.append(label)
+                    all_features.append(features)
+
+        except Exception as e:
+            print(f"[Error] Lỗi khi xử lý file {path}: {e}")
+            continue
+
+    if len(all_features) == 0:
+        print("[Error] Không có dữ liệu đặc trưng hợp lệ.")
+        return None, None
+
+    max_length = max(f.shape[1] for f in all_features)
+    all_features = [np.pad(f, ((0, 0), (0, max_length - f.shape[1]))) if f.shape[1] < max_length else f for f in all_features]
+
+    utils.mkdirs(config.features.feature_folder)
+    feature_path = os.path.join(config.features.feature_folder, "train.p" if train else "predict.p")
+
+    try:
+        with open(feature_path, "wb") as f:
+            pickle.dump((np.vstack(all_features), np.array(all_labels)), f)
+    except Exception as e:
+        print(f"[Error] Lỗi khi lưu feature file: {e}")
+        return None, None
+
+    return prepara_data(config, train=train)
+
+
+        

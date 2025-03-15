@@ -26,7 +26,11 @@
 ├── models/                      #  Chứa các mô hình
 │   ├── __init__.py              # Quản lý import mô hình ( hàm khởi tạo tương tự như một construction)
 │   ├── base_model.py            # Lớp cha cho các mô hình
-│   ├── cnn.py                   # Mô hình CNN
+│   ├── dnn                      # Mô hình DNN
+        ├──__init__.py
+        ├──dnn_control.py        # lớp cha định nghĩa cho các model dnn
+        ├──cnn.py
+│   ├── ml                       # Mô hình machine learning
 │
 ├── extract_feats/               #  Trích xuất đặc trưng
 │   ├── __init__.py              # Quản lý import
@@ -75,4 +79,3 @@
 └── .dvc/                         #  Quản lý version dataset với DVC
 
 
-to activate: conda activate tf
