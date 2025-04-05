@@ -26,6 +26,6 @@ def load(config):
         model: Mô hình đã tải từ file.
     """
     return _MODELS[config.model].load(
-        path=config.checkpoint_path,
-        name=config.checkpoint_name
+        path=config.checkpoint.checkpoint_path,
+        name=config.checkpoint.checkpoint_name
     )

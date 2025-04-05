@@ -201,10 +201,19 @@ class DNN(BaseModel, ABC):
         Trả về:
             np.ndarray: Mảng xác suất của từng lớp.
         """
-        if not self.trained:
-            raise RuntimeError("Chưa có mô hình nào được huấn luyện.")
+
         sample = self.reshape_input(sample)
-        return self.model.predict(sample)[0]
+
+
+        if sample.ndim == 1:
+            sample = np.expand_dims(sample, axis=0) 
+
+
+        probabilities = self.model.predict(sample, verbose=0)  
+
+        return np.squeeze(probabilities)
+    
+
 
     @abstractmethod
     def reshape_input(self, data: np.ndarray) -> np.ndarray:

@@ -8,11 +8,9 @@
 
 │   └── feature_extraction.json  # Cấu hình trích xuất đặc trưng
 │
-├── data/                        # Lưu trữ dữ liệu thô
-│   ├── raw/                     # Dữ liệu gốc chưa qua xử lý
-│   ├── processed/               # Dữ liệu đã tiền xử lý
-│   ├── splits/                  # Chia dữ liệu train / test
-│   ├── labels.csv               # Danh sách nhãn cảm xúc
+├── data/                        # Lưu trữ dữ l
+│   ├── EMNS_data                # Dữ liệu gốc chưa qua xử lý
+│   ├── RAVDESS                  # Dữ liệu gốc chưa qua xử lý
 │   └── metadata.json            # Thông tin về dữ liệu
 │
 ├── features/                    #  Lưu trữ đặc trưng đã trích xuất (quản lý bằng DVC)

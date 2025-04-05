@@ -18,7 +18,7 @@ def get_path(path: str, train: bool = True) -> List[Tuple[str, int]]:
     Tải dữ liệu và trả về danh sách chứa đường dẫn file và nhãn cảm xúc.
 
     Args:
-        path (str): Đường dẫn tới thư mục chứa dataset.
+        path (str): Đường dẫn tới thư mục chứa dataset hoặc một file đơn.
         train (bool): Nếu True, lấy nhãn từ tên file. Nếu False, gán nhãn là -1.
 
     Returns:
@@ -26,17 +26,21 @@ def get_path(path: str, train: bool = True) -> List[Tuple[str, int]]:
     """
     dataset_path = Path(path)
 
+
+    if dataset_path.is_file():
+        print(f" Đang xử lý file đơn lẻ: {dataset_path}")
+        return [(str(dataset_path), -1)]  
+
+
     if not dataset_path.exists():
         raise FileNotFoundError(f"[Error] Dataset folder '{dataset_path}' không tồn tại!")
 
     result_list = []  
-
-   
     for file in dataset_path.rglob("*.wav"):  
         try:
             if train:
                 part = file.stem.split("-")
-                emotion_label = int(part[2])-1
+                emotion_label = int(part[2]) - 1
             else:
                 emotion_label = -1
 
@@ -49,15 +53,17 @@ def get_path(path: str, train: bool = True) -> List[Tuple[str, int]]:
     if not result_list:
         raise ValueError("[Error] Không tìm thấy file âm thanh nào trong dataset!")    
 
-    return result_list 
+    return result_list
 
 
 #  -1:'predict',   0: 'Neutral', 1: 'Calm', 2: 'Happy', 3: 'Sad', 4: 'Angry', 5: 'Fear', 6: 'Disgust', 7: 'Surprise'
 
 
 def get_max_min(files: list) -> Tuple[float]:
-    min_, max_ = 100, 0
+    if len(files) == 1:
+        return 100, 0 
 
+    min_, max_ = 100, 0
     for file in files:
         sound_file, samplerate = librosa.load(file, sr=None)
         t = sound_file.shape[0] / samplerate
@@ -143,6 +149,9 @@ def get_features(paths_list: List[Tuple[str, int]], config=None, train: bool = T
         Union[Tuple[np.ndarray], np.ndarray]: Trả về đặc trưng đã được lưu hoặc gọi `prepara_data()`
     """
 
+    if len(paths_list) == 1:
+        print(f" Đang dự đoán cho 1 file: {paths_list[0][0]}")
+
     max_duration, _ = get_max_min([path for path, _ in paths_list])
 
     all_features = []  
@@ -183,6 +192,9 @@ def get_features(paths_list: List[Tuple[str, int]], config=None, train: bool = T
                     features = np.vstack(augmented_features)
                     all_labels.extend([label] * features.shape[0])  
                     all_features.append(features)
+                
+                max_length = max(f.shape[1] for f in all_features)
+                all_features = [np.pad(f, ((0, 0), (0, max_length - f.shape[1]))) if f.shape[1] < max_length else f for f in all_features]
 
             else: 
                 features = extract_features(data, sample_rate)
@@ -198,8 +210,6 @@ def get_features(paths_list: List[Tuple[str, int]], config=None, train: bool = T
         print("[Error] Không có dữ liệu đặc trưng hợp lệ.")
         return None, None
 
-    max_length = max(f.shape[1] for f in all_features)
-    all_features = [np.pad(f, ((0, 0), (0, max_length - f.shape[1]))) if f.shape[1] < max_length else f for f in all_features]
 
     utils.mkdirs(config.features.feature_folder)
     feature_path = os.path.join(config.features.feature_folder, "train.p" if train else "predict.p")

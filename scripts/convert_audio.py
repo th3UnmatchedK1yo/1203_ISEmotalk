@@ -1,57 +1,75 @@
 import os
-import sys
+import time
+import gc
 from pydub import AudioSegment
 
-def convert_mp3_to_wav(input_path: str, output_path: str = None) -> str:
+def convert_audio_to_wav(input_path: str, output_dir: str = "data/predict_data") -> str:
     """
-    Chuyển đổi file MP3 sang WAV.
-    
+    Chuyển đổi file MP3, WEBM hoặc MP4 sang WAV và lưu vào thư mục output chỉ định.
+
     Args:
-        input_path (str): Đường dẫn file MP3 đầu vào.
-        output_path (str, optional): Đường dẫn file WAV đầu ra. Nếu không cung cấp, lưu vào cùng thư mục với input.
-    
+        input_path (str): Đường dẫn file âm thanh hoặc video đầu vào.
+        output_dir (str): Thư mục lưu file WAV đã chuyển đổi.
+
     Returns:
         str: Đường dẫn file WAV đã được lưu.
     """
-    # Kiểm tra sự tồn tại của file đầu vào
+    total_start_time = time.time()
+
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"File {input_path} không tồn tại!")
 
-    # Kiểm tra định dạng file
-    if not input_path.lower().endswith(".mp3"):
-        raise ValueError("Định dạng file không phải MP3!")
+    file_extension = os.path.splitext(input_path)[1].lower()
+    supported_formats = [".mp3", ".webm", ".mp4"]
 
-    # Đọc file MP3
+    if file_extension not in supported_formats:
+        raise ValueError(f"Định dạng không hợp lệ! Hỗ trợ: {', '.join(supported_formats).upper()}.")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    file_name = os.path.splitext(os.path.basename(input_path))[0] + ".wav"
+    output_path = os.path.join(output_dir, file_name)
+
+    if os.path.exists(output_path):
+        os.remove(output_path)
+        print(f"Đã xóa file WAV cũ: {output_path}")
+
     try:
-        audio = AudioSegment.from_mp3(input_path)
-    except Exception as e:
-        raise RuntimeError(f"Không thể đọc file MP3: {e}")
+        print(f"Đang chuyển đổi: {input_path} → {output_path}")
 
-    # Xác định đường dẫn đầu ra
-    if output_path is None:
-        output_path = os.path.splitext(input_path)[0] + ".wav"
+        load_start = time.time()
+        audio = AudioSegment.from_file(input_path, format=file_extension[1:])
+        load_time = time.time() - load_start
+        print(f"Thời gian đọc file {file_extension.upper()}: {load_time:.6f} giây")
 
-    # Chuyển đổi và lưu file WAV
-    try:
+        export_start = time.time()
         audio.export(output_path, format="wav")
+        export_time = time.time() - export_start
+        print(f"Thời gian ghi file WAV: {export_time:.6f} giây")
+
+        total_time = time.time() - total_start_time
+        print(f"Tổng thời gian chuyển đổi: {total_time:.6f} giây")
+
+
+        del audio
+        gc.collect()
+
+        if not os.path.exists(output_path):
+            raise RuntimeError(f"Lỗi: File WAV không được tạo: {output_path}")
+
+        print(f"Chuyển đổi thành công: {output_path}")
+
+        return output_path
+
     except Exception as e:
-        raise RuntimeError(f"Không thể xuất file WAV: {e}")
+        raise RuntimeError(f"Lỗi khi xử lý file {file_extension.upper()}: {e}")
 
-    print(f"Đã chuyển đổi: {input_path} → {output_path}")
-    return output_path
-
-
-# Chạy script từ dòng lệnh
 if __name__ == "__main__":
-    
-    if len(sys.argv) < 2:
-        print("Sử dụng: python convert_mp3_to_wav.py <input_mp3> [output_wav]")
-        sys.exit(1)
-
-    input_file = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+    input_file = "data/raw_data/Sad (2).MP3"  
+    output_directory = "data/predict_data"
 
     try:
-        convert_mp3_to_wav(input_file, output_file)
+        output_path = convert_audio_to_wav(input_file, output_directory)
+        print(f"File đã được chuyển đổi và lưu tại: {output_path}")
     except Exception as e:
-        print(f"Lỗi: {e}")
+        print(f"Lỗi trong quá trình chuyển đổi: {e}")

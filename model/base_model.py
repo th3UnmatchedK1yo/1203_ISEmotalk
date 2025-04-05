@@ -37,18 +37,6 @@ class BaseModel(ABC):
         """
         pass
 
-    @abstractmethod
-    def predict_proba(self, sample: np.ndarray) -> np.ndarray:
-        """
-        Dự đoán nhãn của dữ liệu đầu vào.
-
-        Args:
-            sample (np.ndarray): Dữ liệu cần dự đoán.
-
-        Returns:
-            np.ndarray: Kết quả dự đoán.
-        """
-        pass
 
     @abstractmethod
     def predict(self, sample: np.ndarray) -> np.ndarray:
@@ -62,6 +50,8 @@ class BaseModel(ABC):
             np.ndarray: Kết quả dự đoán.
         """
         pass
+
+ 
 
     @abstractmethod
     def save(self, path: str, name: str, config=None) -> None:

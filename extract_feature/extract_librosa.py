@@ -30,7 +30,7 @@ def mfcc(data, sr=22050, frame_length=2048, hop_length=512, n_mfcc=13, fixed_siz
     mfcc_padded = [np.pad(coeff, (0, max(0, fixed_size - len(coeff))), mode="constant")[:fixed_size] for coeff in mfcc_values]
     return np.array(mfcc_padded).flatten()
 
-def extract_features(data, sr=22050, frame_length=2048, hop_length=512, n_mfcc=13, duration=2.5, fixed_size=100):
+def extract_features(data, sr=22050, frame_length=2048, hop_length=512, n_mfcc=13, duration=40, fixed_size=100):
     """Trích xuất đặc trưng tổng hợp từ tín hiệu âm thanh."""
     max_length = int(sr * duration)
     data = np.pad(data, (0, max(0, max_length - len(data))), mode="constant")[:max_length]
